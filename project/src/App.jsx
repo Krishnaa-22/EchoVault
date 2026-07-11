@@ -3,6 +3,7 @@ import './App.css'
 import {
   checkBackendHealth,
   uploadRecording,
+  transcribeRecording,
 } from './services/api'
 
 // Mock meeting data
@@ -179,6 +180,9 @@ function RecordingSection() {
   const [status, setStatus] = useState('Ready to record')
   const [isUploading, setIsUploading] = useState(false)
 
+  const [transcript, setTranscript] = useState('')
+const [transcriptionInfo, setTranscriptionInfo] = useState(null)
+
   const mediaRecorderRef = useRef(null)
   const audioChunksRef = useRef([])
   const streamRef = useRef(null)
@@ -238,6 +242,8 @@ function RecordingSection() {
 
       setAudioBlob(null)
       setElapsedSeconds(0)
+      setTranscript('')
+setTranscriptionInfo(null)
 
       const preferredMimeType = 'audio/webm;codecs=opus'
 
@@ -327,28 +333,44 @@ function RecordingSection() {
     setStatus('Preparing recording...')
   }
 
-  const saveRecording = async () => {
-    if (!audioBlob) {
-      setStatus('Record and stop audio before saving')
-      return
-    }
-
-    try {
-      setIsUploading(true)
-      setStatus('Saving audio to local backend...')
-
-      const result = await uploadRecording(audioBlob)
-
-      console.log('Upload result:', result)
-
-      setStatus('Meeting audio saved locally')
-    } catch (error) {
-      console.error('Upload error:', error)
-      setStatus(error.message || 'Audio upload failed')
-    } finally {
-      setIsUploading(false)
-    }
+const saveRecording = async () => {
+  if (!audioBlob) {
+    setStatus('Record and stop audio before saving')
+    return
   }
+
+  try {
+    setIsUploading(true)
+    setTranscript('')
+    setTranscriptionInfo(null)
+
+    setStatus('Uploading recording to local backend...')
+
+    const uploadResult = await uploadRecording(audioBlob)
+
+    setStatus('Transcribing locally with Whisper...')
+
+    const transcriptionResult = await transcribeRecording(
+      uploadResult.filename
+    )
+
+    setTranscript(transcriptionResult.transcript)
+
+    setTranscriptionInfo({
+      language: transcriptionResult.language,
+      model: transcriptionResult.model,
+      processingSeconds:
+        transcriptionResult.processing_seconds,
+    })
+
+    setStatus('Local transcription completed')
+  } catch (error) {
+    console.error('Processing error:', error)
+    setStatus(error.message || 'Meeting processing failed')
+  } finally {
+    setIsUploading(false)
+  }
+}
 
   return (
     <section
@@ -459,6 +481,54 @@ function RecordingSection() {
               />
             </div>
           )}
+          {audioUrl && (
+  <div className="recording-preview">
+    <p>Recording preview</p>
+
+    <audio
+      src={audioUrl}
+      controls
+    />
+  </div>
+)}
+
+{transcript && (
+  <div className="transcript-result">
+    <div className="transcript-result-header">
+      <div>
+        <span className="transcript-label">
+          Local Whisper Transcript
+        </span>
+
+        <h3>Meeting Transcript</h3>
+      </div>
+
+      {transcriptionInfo && (
+        <div className="transcript-meta">
+          <span>
+            Language: {transcriptionInfo.language}
+          </span>
+
+          <span>
+            Model: {transcriptionInfo.model}
+          </span>
+
+          <span>
+            Time: {transcriptionInfo.processingSeconds}s
+          </span>
+        </div>
+      )}
+    </div>
+
+    <p className="transcript-text">
+      {transcript}
+    </p>
+
+    <div className="transcript-privacy">
+      Processed locally — no cloud AI used
+    </div>
+  </div>
+)}
         </div>
       </div>
     </section>

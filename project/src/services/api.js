@@ -34,3 +34,19 @@ export async function uploadRecording(audioBlob) {
 
   return data
 }
+export async function transcribeRecording(filename) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/recordings/${encodeURIComponent(filename)}/transcribe`,
+    {
+      method: 'POST',
+    }
+  )
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Local transcription failed')
+  }
+
+  return data
+}
