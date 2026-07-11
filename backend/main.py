@@ -1,3 +1,12 @@
+from pydantic import BaseModel, Field
+
+from database import (
+    create_meeting_record,
+    delete_meeting_record,
+    get_meeting_record,
+    init_db,
+    list_meeting_records,
+)
 import time
 
 from faster_whisper import WhisperModel
@@ -9,6 +18,15 @@ app = FastAPI(
     description="Local backend for EchoVault",
     version="0.1.0",
 )
+init_db()
+
+class MeetingCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    filename: str
+    transcript: str = Field(min_length=1)
+    language: str | None = None
+    model: str | None = None
+    processing_seconds: float | None = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -189,3 +207,69 @@ def transcribe_recording(filename: str):
             status_code=500,
             detail=f"Local transcription failed: {error}",
         )
+@app.post("/api/meetings", status_code=201)
+def create_meeting(meeting: MeetingCreate):
+    if Path(meeting.filename).name != meeting.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid recording filename",
+        )
+
+    audio_path = UPLOAD_DIR / meeting.filename
+
+    if not audio_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Recording file not found",
+        )
+
+    return create_meeting_record(
+        title=meeting.title,
+        filename=meeting.filename,
+        transcript=meeting.transcript,
+        language=meeting.language,
+        model=meeting.model,
+        processing_seconds=meeting.processing_seconds,
+    )
+
+
+@app.get("/api/meetings")
+def get_meetings():
+    return list_meeting_records()
+
+
+@app.get("/api/meetings/{meeting_id}")
+def get_meeting(meeting_id: int):
+    meeting = get_meeting_record(meeting_id)
+
+    if meeting is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found",
+        )
+
+    return meeting
+
+
+@app.delete("/api/meetings/{meeting_id}")
+def delete_meeting(meeting_id: int):
+    meeting = get_meeting_record(meeting_id)
+
+    if meeting is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found",
+        )
+
+    audio_path = UPLOAD_DIR / meeting["filename"]
+
+    deleted = delete_meeting_record(meeting_id)
+
+    if deleted and audio_path.exists():
+        audio_path.unlink()
+
+    return {
+        "status": "deleted",
+        "meeting_id": meeting_id,
+        "audio_deleted": not audio_path.exists(),
+    }

@@ -4,6 +4,7 @@ import {
   checkBackendHealth,
   uploadRecording,
   transcribeRecording,
+  saveMeeting,
 } from './services/api'
 
 // Mock meeting data
@@ -171,6 +172,7 @@ function Hero() {
 }
 
 function RecordingSection() {
+  const [meetingTitle, setMeetingTitle] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -353,6 +355,19 @@ const saveRecording = async () => {
     const transcriptionResult = await transcribeRecording(
       uploadResult.filename
     )
+    setStatus('Saving meeting locally...')
+
+const savedMeeting = await saveMeeting({
+  title:
+    meetingTitle.trim() ||
+    `Meeting ${new Date().toLocaleString()}`,
+  filename: uploadResult.filename,
+  transcript: transcriptionResult.transcript,
+  language: transcriptionResult.language,
+  model: transcriptionResult.model,
+  processing_seconds:
+    transcriptionResult.processing_seconds,
+})
 
     setTranscript(transcriptionResult.transcript)
 
@@ -363,7 +378,7 @@ const saveRecording = async () => {
         transcriptionResult.processing_seconds,
     })
 
-    setStatus('Local transcription completed')
+    setStatus(`Meeting saved locally — ID ${savedMeeting.id}`)
   } catch (error) {
     console.error('Processing error:', error)
     setStatus(error.message || 'Meeting processing failed')
@@ -388,6 +403,21 @@ const saveRecording = async () => {
         </div>
 
         <div className="recording-card">
+        <div className="meeting-title-field">
+  <label htmlFor="meeting-title">
+    Meeting title
+  </label>
+
+  <input
+    id="meeting-title"
+    type="text"
+    value={meetingTitle}
+    onChange={(event) => setMeetingTitle(event.target.value)}
+    placeholder="Example: EchoVault Planning Meeting"
+    maxLength={120}
+    disabled={isRecording || isUploading}
+  />
+</div>
           <div className="mic-button-container">
             <button
               className={`mic-button ${

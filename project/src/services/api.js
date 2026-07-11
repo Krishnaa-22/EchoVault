@@ -50,3 +50,20 @@ export async function transcribeRecording(filename) {
 
   return data
 }
+export async function saveMeeting(meeting) {
+  const response = await fetch(`${API_BASE_URL}/api/meetings`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(meeting),
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not save meeting')
+  }
+
+  return data
+}
