@@ -67,3 +67,30 @@ export async function saveMeeting(meeting) {
 
   return data
 }
+export async function getMeetings() {
+  const response = await fetch(`${API_BASE_URL}/api/meetings`)
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not load meetings')
+  }
+
+  return data
+}
+
+export async function deleteMeeting(meetingId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/meetings/${meetingId}`,
+    {
+      method: 'DELETE',
+    }
+  )
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Could not delete meeting')
+  }
+
+  return data
+}

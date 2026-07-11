@@ -5,6 +5,8 @@ import {
   uploadRecording,
   transcribeRecording,
   saveMeeting,
+  getMeetings,
+  deleteMeeting,
 } from './services/api'
 
 // Mock meeting data
@@ -171,7 +173,7 @@ function Hero() {
   )
 }
 
-function RecordingSection() {
+function RecordingSection({ onMeetingSaved })  {
   const [meetingTitle, setMeetingTitle] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
@@ -379,6 +381,9 @@ const savedMeeting = await saveMeeting({
     })
 
     setStatus(`Meeting saved locally — ID ${savedMeeting.id}`)
+    if (onMeetingSaved) {
+  onMeetingSaved()
+}
   } catch (error) {
     console.error('Processing error:', error)
     setStatus(error.message || 'Meeting processing failed')
@@ -564,7 +569,211 @@ const savedMeeting = await saveMeeting({
     </section>
   )
 }
+function MeetingHistory({ refreshKey }) {
+  const [meetings, setMeetings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [openMeetingId, setOpenMeetingId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
 
+  useEffect(() => {
+    async function loadMeetings() {
+      try {
+        setLoading(true)
+        setError('')
+
+        const data = await getMeetings()
+        setMeetings(data)
+      } catch (loadError) {
+        console.error('Meeting loading error:', loadError)
+        setError(loadError.message || 'Could not load meetings')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadMeetings()
+  }, [refreshKey])
+
+  const handleDelete = async (meetingId) => {
+    const confirmed = window.confirm(
+      'Delete this meeting and its local audio recording?'
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      setDeletingId(meetingId)
+
+      await deleteMeeting(meetingId)
+
+      setMeetings((currentMeetings) =>
+        currentMeetings.filter(
+          (meeting) => meeting.id !== meetingId
+        )
+      )
+
+      if (openMeetingId === meetingId) {
+        setOpenMeetingId(null)
+      }
+    } catch (deleteError) {
+      console.error('Meeting deletion error:', deleteError)
+      window.alert(
+        deleteError.message || 'Could not delete meeting'
+      )
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const formatMeetingDate = (createdAt) => {
+    if (!createdAt) {
+      return 'Unknown date'
+    }
+
+    const normalizedDate = createdAt.includes('T')
+      ? createdAt
+      : `${createdAt.replace(' ', 'T')}Z`
+
+    const date = new Date(normalizedDate)
+
+    if (Number.isNaN(date.getTime())) {
+      return createdAt
+    }
+
+    return date.toLocaleString()
+  }
+
+  return (
+    <section id="meetings" className="section meeting-history-section">
+      <div className="section-container">
+        <div className="section-header">
+          <span className="section-badge">
+            Stored on your device
+          </span>
+
+          <h2 className="section-title">
+            Meeting History
+          </h2>
+
+          <p className="section-subtitle">
+            View transcripts saved privately in your local
+            EchoVault database.
+          </p>
+        </div>
+
+        {loading && (
+          <div className="meeting-history-message">
+            Loading local meetings...
+          </div>
+        )}
+
+        {error && (
+          <div className="meeting-history-message error">
+            {error}
+          </div>
+        )}
+
+        {!loading && !error && meetings.length === 0 && (
+          <div className="meeting-empty-state">
+            <h3>No saved meetings yet</h3>
+
+            <p>
+              Record and save your first meeting to see it here.
+            </p>
+          </div>
+        )}
+
+        {!loading && meetings.length > 0 && (
+          <div className="meeting-history-grid">
+            {meetings.map((meeting) => {
+              const isOpen = openMeetingId === meeting.id
+
+              return (
+                <article
+                  className="meeting-history-card"
+                  key={meeting.id}
+                >
+                  <div className="meeting-history-card-header">
+                    <div>
+                      <span className="meeting-id">
+                        Meeting #{meeting.id}
+                      </span>
+
+                      <h3>{meeting.title}</h3>
+                    </div>
+
+                    <span className="meeting-language">
+                      {(meeting.language || 'unknown')
+                        .toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="meeting-history-meta">
+                    <span>
+                      {formatMeetingDate(meeting.created_at)}
+                    </span>
+
+                    <span>
+                      Whisper {meeting.model || 'unknown'}
+                    </span>
+
+                    <span>
+                      {meeting.processing_seconds ?? '—'}s
+                    </span>
+                  </div>
+
+                  <p
+                    className={`meeting-transcript-preview ${
+                      isOpen ? 'expanded' : ''
+                    }`}
+                  >
+                    {meeting.transcript}
+                  </p>
+
+                  <div className="meeting-history-actions">
+                    <button
+                      type="button"
+                      className="meeting-open-button"
+                      onClick={() =>
+                        setOpenMeetingId(
+                          isOpen ? null : meeting.id
+                        )
+                      }
+                    >
+                      {isOpen
+                        ? 'Close Transcript'
+                        : 'Open Transcript'}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="meeting-delete-button"
+                      onClick={() =>
+                        handleDelete(meeting.id)
+                      }
+                      disabled={deletingId === meeting.id}
+                    >
+                      {deletingId === meeting.id
+                        ? 'Deleting...'
+                        : 'Delete'}
+                    </button>
+                  </div>
+
+                  <div className="meeting-local-note">
+                    Stored locally in SQLite
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
 const workflowSteps = [
   { icon: '🎙️', title: 'Record Meeting', desc: 'Capture audio locally on your device' },
   { icon: '🔊', title: 'Offline Speech-to-Text', desc: 'Convert audio to transcript using Whisper' },
@@ -787,7 +996,7 @@ function Footer() {
 
 function App() {
     const [backendStatus, setBackendStatus] = useState('checking')
-
+    const [meetingsRefreshKey, setMeetingsRefreshKey] = useState(0)
   useEffect(() => {
     async function connectBackend() {
       try {
@@ -806,6 +1015,9 @@ function App() {
 
     connectBackend()
   }, [])  
+  const refreshMeetingHistory = () => {
+  setMeetingsRefreshKey((current) => current + 1)
+}
   return (
     <>
       <Navbar />
@@ -817,7 +1029,13 @@ function App() {
   {backendStatus === 'offline' && 'Local Engine: Offline'}
 </div>
       <Hero />
-      <RecordingSection />
+      <RecordingSection
+  onMeetingSaved={refreshMeetingHistory}
+/>
+
+<MeetingHistory
+  refreshKey={meetingsRefreshKey}
+/>
       <WorkflowSection />
       <SearchSection />
       <PrivacySection />
