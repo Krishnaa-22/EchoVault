@@ -116,3 +116,21 @@ export async function searchMeetings(query, limit = 5) {
 
   return data
 }
+export async function analyseMeeting(meetingId) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/meetings/${meetingId}/analyse`,
+    {
+      method: 'POST',
+    }
+  )
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail || 'Local meeting analysis failed'
+    )
+  }
+
+  return data
+}

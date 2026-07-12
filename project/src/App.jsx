@@ -7,7 +7,9 @@ import {
   saveMeeting,
   getMeetings,
   deleteMeeting,
-  searchMeetings,
+  searchMeetings,  
+  analyseMeeting,
+
 } from './services/api'
 
 // Mock meeting data
@@ -576,6 +578,7 @@ function MeetingHistory({ refreshKey }) {
   const [error, setError] = useState('')
   const [openMeetingId, setOpenMeetingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [analysingId, setAnalysingId] = useState(null)
 
   useEffect(() => {
     async function loadMeetings() {
@@ -628,6 +631,44 @@ function MeetingHistory({ refreshKey }) {
       setDeletingId(null)
     }
   }
+  const handleAnalyse = async (meetingId) => {
+  try {
+    setAnalysingId(meetingId)
+
+    const analysis = await analyseMeeting(meetingId)
+
+    setMeetings((currentMeetings) =>
+      currentMeetings.map((meeting) =>
+        meeting.id === meetingId
+          ? {
+              ...meeting,
+              summary: analysis.summary,
+              key_decisions:
+                analysis.key_decisions || [],
+              action_items:
+                analysis.action_items || [],
+              topics: analysis.topics || [],
+              analysis_model: analysis.model,
+              analysis_seconds:
+                analysis.processing_seconds,
+            }
+          : meeting
+      )
+    )
+  } catch (analysisError) {
+    console.error(
+      'Meeting analysis error:',
+      analysisError
+    )
+
+    window.alert(
+      analysisError.message ||
+        'Could not analyse meeting locally'
+    )
+  } finally {
+    setAnalysingId(null)
+  }
+}
 
   const formatMeetingDate = (createdAt) => {
     if (!createdAt) {
@@ -733,6 +774,89 @@ function MeetingHistory({ refreshKey }) {
                   >
                     {meeting.transcript}
                   </p>
+                  {meeting.summary && (
+                    <div className="meeting-analysis">
+                      <div className="meeting-analysis-heading">
+                        <div>
+                          <span>Local Qwen Analysis</span>
+                          <h4>Meeting Intelligence</h4>
+                        </div>
+                        
+                        <div className="meeting-analysis-model">
+                          {meeting.analysis_model || 'qwen2.5:1.5b'}
+                        </div>
+                      </div>
+                      <div className="meeting-analysis-section">
+                        <h5>Summary</h5>
+                        <p>{meeting.summary}</p>
+                      </div>
+                      {meeting.key_decisions?.length > 0 && (
+                        <div className="meeting-analysis-section">
+                          <h5>Key Decisions</h5>
+                          <ul>
+                            {meeting.key_decisions.map(
+                              (decision, index) => (
+                               <li key={`${decision}-${index}`}>
+                                {decision}
+                              </li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      )}
+
+    {meeting.action_items?.length > 0 && (
+      <div className="meeting-analysis-section">
+        <h5>Action Items</h5>
+
+        <div className="meeting-action-items">
+          {meeting.action_items.map(
+            (item, index) => (
+              <div
+                className="meeting-action-item"
+                key={`${item.task}-${index}`}
+              >
+                <strong>{item.task}</strong>
+
+                <div>
+                  <span>
+                    Assignee:{' '}
+                    {item.assignee || 'Not specified'}
+                  </span>
+
+                  <span>
+                    Due:{' '}
+                    {item.due_date || 'Not specified'}
+                  </span>
+
+                  <span>
+                    Priority:{' '}
+                    {item.priority || 'medium'}
+                  </span>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      </div>
+    )}
+
+    {meeting.topics?.length > 0 && (
+      <div className="meeting-topics">
+        {meeting.topics.map((topic) => (
+          <span key={topic}>{topic}</span>
+        ))}
+      </div>
+    )}
+
+    {meeting.analysis_seconds != null && (
+      <div className="meeting-analysis-time">
+        Analysed locally in{' '}
+        {meeting.analysis_seconds} seconds
+      </div>
+    )}
+  </div>
+)}
 
                   <div className="meeting-history-actions">
                     <button
@@ -748,6 +872,18 @@ function MeetingHistory({ refreshKey }) {
                         ? 'Close Transcript'
                         : 'Open Transcript'}
                     </button>
+                    <button
+                    type="button"
+                    className="meeting-analyse-button"
+                    onClick={() => handleAnalyse(meeting.id)}
+                    disabled={analysingId === meeting.id}
+                  >
+                    {analysingId === meeting.id
+                     ? 'Analysing locally...'
+                     : meeting.summary
+                    ? 'Analyse Again'
+                    : 'Analyse Meeting'}
+                  </button>
 
                     <button
                       type="button"

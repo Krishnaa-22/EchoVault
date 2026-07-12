@@ -11,7 +11,32 @@ def get_connection() -> sqlite3.Connection:
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
     return connection
+def deserialize_meeting_row(
+    row: sqlite3.Row | None,
+) -> dict[str, Any] | None:
+    if row is None:
+        return None
 
+    meeting = dict(row)
+
+    for field_name in (
+        "key_decisions",
+        "action_items",
+        "topics",
+    ):
+        stored_value = meeting.get(field_name)
+
+        if not stored_value:
+            meeting[field_name] = []
+            continue
+
+        if isinstance(stored_value, str):
+            try:
+                meeting[field_name] = json.loads(stored_value)
+            except json.JSONDecodeError:
+                meeting[field_name] = []
+
+    return meeting
 
 def init_db() -> None:
     with get_connection() as connection:
@@ -111,10 +136,14 @@ def list_meeting_records() -> list[dict[str, Any]]:
             """
         ).fetchall()
 
-    return [dict(row) for row in rows]
+    return [
+        deserialize_meeting_row(row)
+        for row in rows
+    ]
 
-
-def get_meeting_record(meeting_id: int) -> dict[str, Any] | None:
+def get_meeting_record(
+    meeting_id: int,
+) -> dict[str, Any] | None:
     with get_connection() as connection:
         row = connection.execute(
             """
@@ -125,8 +154,7 @@ def get_meeting_record(meeting_id: int) -> dict[str, Any] | None:
             (meeting_id,),
         ).fetchone()
 
-    return dict(row) if row else None
-
+    return deserialize_meeting_row(row)
 
 def delete_meeting_record(meeting_id: int) -> bool:
     with get_connection() as connection:

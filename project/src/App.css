@@ -1724,3 +1724,167 @@
     flex-direction: column;
   }
 }
+.meeting-analyse-button {
+  border: 1px solid #a5f3fc;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.meeting-analyse-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.meeting-analysis {
+  margin-top: 22px;
+  padding: 20px;
+
+  border: 1px solid #cceaf0;
+  border-radius: 15px;
+
+  background: #f8fdff;
+}
+
+.meeting-analysis-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.meeting-analysis-heading span {
+  color: #0891b2;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.meeting-analysis-heading h4 {
+  margin: 5px 0 0;
+  color: #172033;
+  font-size: 18px;
+}
+
+.meeting-analysis-model {
+  align-self: flex-start;
+  padding: 6px 9px;
+
+  border: 1px solid #dbe8ec;
+  border-radius: 8px;
+
+  background: white;
+  color: #64748b;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.meeting-analysis-section {
+  margin-top: 18px;
+}
+
+.meeting-analysis-section h5 {
+  margin: 0 0 9px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.meeting-analysis-section p,
+.meeting-analysis-section li {
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.meeting-analysis-section p {
+  margin: 0;
+}
+
+.meeting-analysis-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.meeting-action-items {
+  display: grid;
+  gap: 10px;
+}
+
+.meeting-action-item {
+  padding: 12px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+
+  background: white;
+}
+
+.meeting-action-item strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.meeting-action-item div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.meeting-action-item span {
+  padding: 5px 7px;
+  border-radius: 6px;
+
+  background: #f1f5f9;
+  color: #64748b;
+
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.meeting-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 18px;
+}
+
+.meeting-topics span {
+  padding: 6px 9px;
+
+  border: 1px solid #a5f3fc;
+  border-radius: 999px;
+
+  background: #ecfeff;
+  color: #0e7490;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.meeting-analysis-time {
+  margin-top: 18px;
+  padding-top: 12px;
+
+  border-top: 1px solid #dcecf0;
+
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .meeting-analysis-heading {
+    flex-direction: column;
+  }
+
+  .meeting-history-actions {
+    flex-direction: column;
+  }
+
+  .meeting-history-actions button {
+    width: 100%;
+  }
+}
