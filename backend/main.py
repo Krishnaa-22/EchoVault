@@ -1,3 +1,6 @@
+import numpy as np
+
+from sentence_transformers import SentenceTransformer
 from pydantic import BaseModel, Field
 
 from database import (
@@ -27,6 +30,9 @@ class MeetingCreate(BaseModel):
     language: str | None = None
     model: str | None = None
     processing_seconds: float | None = None
+class SearchRequest(BaseModel):
+    query: str = Field(min_length=2, max_length=500)
+    limit: int = Field(default=5, ge=1, le=10)
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,7 +77,9 @@ ALLOWED_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".ogg"}
 WHISPER_MODEL_NAME = "tiny"
 
 whisper_model = None
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
+embedding_model = None
 
 def get_whisper_model():
     global whisper_model
@@ -88,6 +96,48 @@ def get_whisper_model():
         print("Whisper model loaded.")
 
     return whisper_model
+def get_embedding_model():
+    global embedding_model
+
+    if embedding_model is None:
+        print("Loading local semantic-search model...")
+
+        embedding_model = SentenceTransformer(
+            EMBEDDING_MODEL_NAME,
+            device="cpu",
+        )
+
+        print("Semantic-search model loaded.")
+
+    return embedding_model
+
+def split_transcript_into_chunks(
+    transcript: str,
+    max_words: int = 120,
+    overlap_words: int = 25,
+) -> list[str]:
+    words = transcript.split()
+
+    if not words:
+        return []
+
+    chunks = []
+    start = 0
+
+    while start < len(words):
+        end = min(start + max_words, len(words))
+
+        chunk = " ".join(words[start:end]).strip()
+
+        if chunk:
+            chunks.append(chunk)
+
+        if end >= len(words):
+            break
+
+        start = end - overlap_words
+
+    return chunks
 
 
 @app.post("/api/recordings/upload")
@@ -273,3 +323,113 @@ def delete_meeting(meeting_id: int):
         "meeting_id": meeting_id,
         "audio_deleted": not audio_path.exists(),
     }
+
+@app.post("/api/search")
+def semantic_search(search_request: SearchRequest):
+    query = search_request.query.strip()
+
+    if not query:
+        raise HTTPException(
+            status_code=400,
+            detail="Search query cannot be empty",
+        )
+
+    meetings = list_meeting_records()
+
+    if not meetings:
+        return {
+            "query": query,
+            "model": EMBEDDING_MODEL_NAME,
+            "processing": "on-device",
+            "results": [],
+        }
+
+    searchable_chunks = []
+
+    for meeting in meetings:
+        transcript = meeting.get("transcript", "").strip()
+
+        if not transcript:
+            continue
+
+        chunks = split_transcript_into_chunks(transcript)
+
+        for chunk_index, chunk_text in enumerate(chunks):
+            searchable_chunks.append(
+                {
+                    "meeting_id": meeting["id"],
+                    "meeting_title": meeting["title"],
+                    "meeting_date": meeting["created_at"],
+                    "chunk_index": chunk_index,
+                    "text": chunk_text,
+                }
+            )
+
+    if not searchable_chunks:
+        return {
+            "query": query,
+            "model": EMBEDDING_MODEL_NAME,
+            "processing": "on-device",
+            "results": [],
+        }
+
+    try:
+        model = get_embedding_model()
+
+        query_embedding = model.encode(
+            query,
+            normalize_embeddings=True,
+        )
+
+        chunk_texts = [
+            chunk["text"]
+            for chunk in searchable_chunks
+        ]
+
+        chunk_embeddings = model.encode(
+            chunk_texts,
+            normalize_embeddings=True,
+        )
+
+        similarity_scores = np.dot(
+            chunk_embeddings,
+            query_embedding,
+        )
+
+        ranked_indices = np.argsort(
+            similarity_scores
+        )[::-1]
+
+        results = []
+
+        for index in ranked_indices[: search_request.limit]:
+            chunk = searchable_chunks[int(index)]
+            score = float(similarity_scores[int(index)])
+
+            results.append(
+                {
+                    "meeting_id": chunk["meeting_id"],
+                    "meeting_title": chunk["meeting_title"],
+                    "meeting_date": chunk["meeting_date"],
+                    "relevant_text": chunk["text"],
+                    "chunk_index": chunk["chunk_index"],
+                    "similarity_score": round(score, 4),
+                }
+            )
+
+        return {
+            "query": query,
+            "model": EMBEDDING_MODEL_NAME,
+            "processing": "on-device",
+            "searched_meetings": len(meetings),
+            "searched_chunks": len(searchable_chunks),
+            "results": results,
+        }
+
+    except Exception as error:
+        print("Semantic search error:", error)
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Local semantic search failed: {error}",
+        )
