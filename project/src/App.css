@@ -1511,3 +1511,216 @@
     grid-template-columns: 1fr;
   }
 }
+.semantic-search-section {
+  background: #ffffff;
+}
+
+.semantic-search-panel {
+  width: min(100%, 900px);
+  margin: 36px auto 0;
+  padding: 28px;
+
+  border: 1px solid #dbe8ec;
+  border-radius: 20px;
+
+  background: #f8fdff;
+  box-shadow: 0 12px 38px rgba(15, 23, 42, 0.07);
+}
+
+.semantic-search-form {
+  display: flex;
+  gap: 12px;
+}
+
+.semantic-search-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+
+  background: white;
+  color: #172033;
+  font: inherit;
+}
+
+.semantic-search-form input:focus {
+  border-color: #06b6d4;
+  outline: 3px solid rgba(6, 182, 212, 0.12);
+}
+
+.semantic-search-form button {
+  padding: 14px 20px;
+  border: 0;
+  border-radius: 11px;
+
+  background: #06b6d4;
+  color: white;
+
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.semantic-search-form button:disabled,
+.semantic-search-examples button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.semantic-search-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.semantic-search-examples > span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.semantic-search-examples button {
+  padding: 7px 10px;
+
+  border: 1px solid #cceaf0;
+  border-radius: 8px;
+
+  background: white;
+  color: #0e7490;
+
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.semantic-search-status {
+  margin-top: 20px;
+  padding: 12px 14px;
+
+  border-radius: 10px;
+  background: #ecfeff;
+  color: #0e7490;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.semantic-search-query {
+  margin-top: 22px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.semantic-search-results {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.semantic-search-result-card {
+  padding: 20px;
+
+  border: 1px solid #dbe8ec;
+  border-radius: 15px;
+
+  background: white;
+}
+
+.semantic-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.semantic-result-rank {
+  color: #0891b2;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.semantic-result-header h3 {
+  margin: 5px 0 0;
+  color: #172033;
+  font-size: 18px;
+}
+
+.semantic-score {
+  flex-shrink: 0;
+  padding: 7px 10px;
+
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+
+  background: #f0fdf4;
+  color: #15803d;
+
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.semantic-result-text {
+  margin: 18px 0;
+  padding: 15px;
+
+  border-left: 3px solid #06b6d4;
+  border-radius: 0 10px 10px 0;
+
+  background: #f8fafc;
+  color: #334155;
+
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.semantic-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.semantic-result-meta span {
+  padding: 6px 9px;
+  border-radius: 7px;
+
+  background: #f1f5f9;
+  color: #64748b;
+
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.semantic-search-privacy {
+  margin-top: 24px;
+  padding-top: 16px;
+
+  border-top: 1px solid #dcecf0;
+
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .semantic-search-panel {
+    padding: 20px;
+  }
+
+  .semantic-search-form {
+    flex-direction: column;
+  }
+
+  .semantic-search-form button {
+    width: 100%;
+  }
+
+  .semantic-result-header {
+    flex-direction: column;
+  }
+}

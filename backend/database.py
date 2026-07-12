@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -24,12 +25,44 @@ def init_db() -> None:
                 language TEXT,
                 model TEXT,
                 processing_seconds REAL,
+                summary TEXT,
+                key_decisions TEXT,
+                action_items TEXT,
+                topics TEXT,
+                analysis_model TEXT,
+                analysis_seconds REAL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
-        connection.commit()
 
+        # Add new columns to databases created before analysis was added.
+        existing_columns = {
+            row["name"]
+            for row in connection.execute(
+                "PRAGMA table_info(meetings)"
+            ).fetchall()
+        }
+
+        new_columns = {
+            "summary": "TEXT",
+            "key_decisions": "TEXT",
+            "action_items": "TEXT",
+            "topics": "TEXT",
+            "analysis_model": "TEXT",
+            "analysis_seconds": "REAL",
+        }
+
+        for column_name, column_type in new_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(
+                    f"""
+                    ALTER TABLE meetings
+                    ADD COLUMN {column_name} {column_type}
+                    """
+                )
+
+        connection.commit()
 
 def create_meeting_record(
     title: str,
@@ -108,3 +141,48 @@ def delete_meeting_record(meeting_id: int) -> bool:
         connection.commit()
 
     return cursor.rowcount > 0
+def save_meeting_analysis(
+    meeting_id: int,
+    summary: str,
+    key_decisions: list[str],
+    action_items: list[dict[str, Any]],
+    topics: list[str],
+    analysis_model: str,
+    analysis_seconds: float,
+) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE meetings
+            SET
+                summary = ?,
+                key_decisions = ?,
+                action_items = ?,
+                topics = ?,
+                analysis_model = ?,
+                analysis_seconds = ?
+            WHERE id = ?
+            """,
+            (
+                summary,
+                json.dumps(
+                    key_decisions,
+                    ensure_ascii=False,
+                ),
+                json.dumps(
+                    action_items,
+                    ensure_ascii=False,
+                ),
+                json.dumps(
+                    topics,
+                    ensure_ascii=False,
+                ),
+                analysis_model,
+                analysis_seconds,
+                meeting_id,
+            ),
+        )
+
+        connection.commit()
+
+    return get_meeting_record(meeting_id)

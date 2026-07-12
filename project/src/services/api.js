@@ -94,3 +94,25 @@ export async function deleteMeeting(meetingId) {
 
   return data
 }
+export async function searchMeetings(query, limit = 5) {
+  const response = await fetch(`${API_BASE_URL}/api/search`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      limit,
+    }),
+  })
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail || 'Local semantic search failed'
+    )
+  }
+
+  return data
+}

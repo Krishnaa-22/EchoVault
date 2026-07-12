@@ -7,6 +7,7 @@ import {
   saveMeeting,
   getMeetings,
   deleteMeeting,
+  searchMeetings,
 } from './services/api'
 
 // Mock meeting data
@@ -811,67 +812,216 @@ function WorkflowSection() {
 }
 
 function SearchSection() {
-  const [searchQuery, setSearchQuery] = useState('')
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+  const [status, setStatus] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchedQuery, setSearchedQuery] = useState('')
 
-  const suggestions = ['authentication', 'login', 'Firebase', 'OAuth', 'password reset', 'UI bugs', 'deadline']
+  const exampleQueries = [
+    'What did we decide about login?',
+    'Who was assigned the frontend work?',
+    'What deadline did we discuss?',
+  ]
 
-  const filteredMeetings = useMemo(() => {
-    if (!searchQuery.trim()) return mockMeetings
+  const runSearch = async (searchQuery) => {
+    const cleanQuery = searchQuery.trim()
 
-    const query = searchQuery.toLowerCase().trim()
-    const relatedTerms = semanticMap[query] || []
+    if (cleanQuery.length < 2) {
+      setStatus('Enter a question with at least 2 characters')
+      setResults([])
+      return
+    }
 
-    return mockMeetings.filter(meeting => {
-      const matchesDirect = meeting.searchTerms.some(term => term.includes(query))
-      const matchesSemantic = relatedTerms.some(term =>
-        meeting.searchTerms.some(mt => mt.includes(term))
+    try {
+      setIsSearching(true)
+      setStatus('Searching meetings locally...')
+      setResults([])
+      setSearchedQuery(cleanQuery)
+
+      const data = await searchMeetings(cleanQuery, 5)
+
+      setResults(data.results || [])
+
+      if (!data.results || data.results.length === 0) {
+        setStatus('No relevant meeting passages found')
+      } else {
+        setStatus(
+          `Found ${data.results.length} relevant result${
+            data.results.length === 1 ? '' : 's'
+          }`
+        )
+      }
+    } catch (error) {
+      console.error('Semantic search error:', error)
+
+      setStatus(
+        error.message || 'Could not search local meetings'
       )
-      return matchesDirect || matchesSemantic
-    })
-  }, [searchQuery])
+      setResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    runSearch(query)
+  }
+
+  const formatScore = (score) => {
+    if (typeof score !== 'number') {
+      return '—'
+    }
+
+    return `${Math.max(0, Math.min(100, score * 100)).toFixed(
+      0
+    )}%`
+  }
+
+  const formatDate = (createdAt) => {
+    if (!createdAt) {
+      return 'Unknown date'
+    }
+
+    const normalizedDate = createdAt.includes('T')
+      ? createdAt
+      : `${createdAt.replace(' ', 'T')}Z`
+
+    const date = new Date(normalizedDate)
+
+    if (Number.isNaN(date.getTime())) {
+      return createdAt
+    }
+
+    return date.toLocaleString()
+  }
 
   return (
-    <section id="search" className="section search-section">
+    <section id="search" className="section semantic-search-section">
       <div className="section-container">
         <div className="section-header">
-          <h2 className="section-title">Semantic Search</h2>
-          <p className="section-subtitle">Search by meaning, not just keywords. Find related meetings automatically.</p>
+          <span className="section-badge">
+            Private contextual retrieval
+          </span>
+
+          <h2 className="section-title">
+            Search Your Meeting Memory
+          </h2>
+
+          <p className="section-subtitle">
+            Ask a natural-language question. EchoVault compares
+            it with your saved transcripts using a local MiniLM
+            embedding model.
+          </p>
         </div>
-        <div className="search-container">
-          <div className="search-box">
-            <span className="search-icon">🔍</span>
+
+        <div className="semantic-search-panel">
+          <form
+            className="semantic-search-form"
+            onSubmit={handleSubmit}
+          >
             <input
               type="text"
-              className="search-input"
-              placeholder="Ask: What did we decide about authentication?"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={query}
+              onChange={(event) =>
+                setQuery(event.target.value)
+              }
+              placeholder="Example: What did we decide about Firebase authentication?"
+              maxLength={500}
+              disabled={isSearching}
             />
-          </div>
-          <div className="search-suggestions">
-            {suggestions.map((suggestion, index) => (
+
+            <button
+              type="submit"
+              disabled={isSearching}
+            >
+              {isSearching
+                ? 'Searching locally...'
+                : 'Search Meetings'}
+            </button>
+          </form>
+
+          <div className="semantic-search-examples">
+            <span>Try:</span>
+
+            {exampleQueries.map((example) => (
               <button
-                key={index}
-                className="suggestion-chip"
-                onClick={() => setSearchQuery(suggestion)}
+                key={example}
+                type="button"
+                onClick={() => {
+                  setQuery(example)
+                  runSearch(example)
+                }}
+                disabled={isSearching}
               >
-                {suggestion}
+                {example}
               </button>
             ))}
           </div>
-        </div>
-        <div id="meetings">
-          {filteredMeetings.length > 0 ? (
-            <div className="meetings-grid">
-              {filteredMeetings.map(meeting => (
-                <MeetingCard key={meeting.id} meeting={meeting} />
-              ))}
-            </div>
-          ) : (
-            <div className="no-results">
-              No meetings found matching "{searchQuery}"
+
+          {status && (
+            <div className="semantic-search-status">
+              {status}
             </div>
           )}
+
+          {searchedQuery && (
+            <div className="semantic-search-query">
+              Results for: <strong>{searchedQuery}</strong>
+            </div>
+          )}
+
+          {results.length > 0 && (
+            <div className="semantic-search-results">
+              {results.map((result, index) => (
+                <article
+                  className="semantic-search-result-card"
+                  key={`${result.meeting_id}-${result.chunk_index}-${index}`}
+                >
+                  <div className="semantic-result-header">
+                    <div>
+                      <span className="semantic-result-rank">
+                        Result #{index + 1}
+                      </span>
+
+                      <h3>{result.meeting_title}</h3>
+                    </div>
+
+                    <span className="semantic-score">
+                      Match {formatScore(
+                        result.similarity_score
+                      )}
+                    </span>
+                  </div>
+
+                  <p className="semantic-result-text">
+                    {result.relevant_text}
+                  </p>
+
+                  <div className="semantic-result-meta">
+                    <span>
+                      Meeting #{result.meeting_id}
+                    </span>
+
+                    <span>
+                      {formatDate(result.meeting_date)}
+                    </span>
+
+                    <span>
+                      Transcript chunk #
+                      {result.chunk_index + 1}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div className="semantic-search-privacy">
+            MiniLM runs locally on your laptop. Meeting
+            transcripts are not sent to a hosted AI API.
+          </div>
         </div>
       </div>
     </section>

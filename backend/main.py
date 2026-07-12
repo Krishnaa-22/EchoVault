@@ -1,14 +1,18 @@
+import json
+import httpx
+
 import numpy as np
 
 from sentence_transformers import SentenceTransformer
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, ValidationError
+from typing import Literal
 from database import (
     create_meeting_record,
     delete_meeting_record,
     get_meeting_record,
     init_db,
     list_meeting_records,
+    save_meeting_analysis,
 )
 import time
 
@@ -33,6 +37,18 @@ class MeetingCreate(BaseModel):
 class SearchRequest(BaseModel):
     query: str = Field(min_length=2, max_length=500)
     limit: int = Field(default=5, ge=1, le=10)
+class ActionItem(BaseModel):
+    task: str = Field(min_length=1)
+    assignee: str | None = None
+    due_date: str | None = None
+    priority: Literal["low", "medium", "high"] = "medium"
+
+
+class MeetingAnalysis(BaseModel):
+    summary: str = Field(min_length=1)
+    key_decisions: list[str]
+    action_items: list[ActionItem]
+    topics: list[str]
 
 app.add_middleware(
     CORSMiddleware,
@@ -80,6 +96,8 @@ whisper_model = None
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 embedding_model = None
+OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+OLLAMA_MODEL_NAME = "qwen2.5:1.5b"
 
 def get_whisper_model():
     global whisper_model
@@ -433,3 +451,188 @@ def semantic_search(search_request: SearchRequest):
             status_code=500,
             detail=f"Local semantic search failed: {error}",
         )
+
+@app.post("/api/meetings/{meeting_id}/analyse")
+def analyse_meeting(meeting_id: int):
+    meeting = get_meeting_record(meeting_id)
+
+    if meeting is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Meeting not found",
+        )
+
+    transcript = (meeting.get("transcript") or "").strip()
+
+    if not transcript:
+        raise HTTPException(
+            status_code=422,
+            detail="This meeting does not have a transcript",
+        )
+
+    try:
+        with httpx.Client(timeout=180.0) as client:
+            # Confirm Ollama is running and the model exists locally.
+            models_response = client.get(
+                f"{OLLAMA_BASE_URL}/api/tags"
+            )
+            models_response.raise_for_status()
+
+            installed_models = {
+                model.get("name") or model.get("model")
+                for model in models_response.json().get(
+                    "models",
+                    [],
+                )
+            }
+
+            if OLLAMA_MODEL_NAME not in installed_models:
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        f"Local model {OLLAMA_MODEL_NAME} is missing. "
+                        f"Run: ollama pull {OLLAMA_MODEL_NAME}"
+                    ),
+                )
+
+            schema = MeetingAnalysis.model_json_schema()
+
+            prompt = f"""
+Analyse the meeting transcript below.
+
+Return only information supported by the transcript.
+
+Rules:
+- Create a concise factual summary.
+- List only decisions explicitly made.
+- Extract genuine action items.
+- Never invent an assignee.
+- Never invent a due date.
+- Use null when an assignee or due date is unknown.
+- Priority must be low, medium, or high.
+- Identify a short list of useful meeting topics.
+
+Required JSON schema:
+{json.dumps(schema)}
+
+Meeting title:
+{meeting["title"]}
+
+Transcript:
+{transcript}
+""".strip()
+
+            started_at = time.perf_counter()
+
+            ollama_response = client.post(
+                f"{OLLAMA_BASE_URL}/api/generate",
+                json={
+                    "model": OLLAMA_MODEL_NAME,
+                    "system": (
+                        "You are a precise meeting-analysis system. "
+                        "Use only the supplied transcript and return "
+                        "valid structured JSON."
+                    ),
+                    "prompt": prompt,
+                    "stream": False,
+                    "format": schema,
+                    "options": {
+                        "temperature": 0,
+                        "num_ctx": 4096,
+                    },
+                    "keep_alive": "10m",
+                },
+            )
+
+            ollama_response.raise_for_status()
+
+            processing_seconds = (
+                time.perf_counter() - started_at
+            )
+
+    except HTTPException:
+        raise
+
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Ollama is not running. Open Ollama and try again."
+            ),
+        )
+
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="Local meeting analysis timed out",
+        )
+
+    except httpx.HTTPStatusError as error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Ollama returned an error: {error}",
+        )
+
+    response_text = ollama_response.json().get(
+        "response",
+        "",
+    )
+
+    if not response_text:
+        raise HTTPException(
+            status_code=502,
+            detail="Ollama returned an empty response",
+        )
+
+    try:
+        analysis = MeetingAnalysis.model_validate_json(
+            response_text
+        )
+
+    except ValidationError as error:
+        print("Invalid Ollama response:", response_text)
+        print("Validation error:", error)
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "The local model returned invalid analysis data. "
+                "Please try again."
+            ),
+        )
+
+    saved_meeting = save_meeting_analysis(
+        meeting_id=meeting_id,
+        summary=analysis.summary,
+        key_decisions=analysis.key_decisions,
+        action_items=[
+            item.model_dump()
+            for item in analysis.action_items
+        ],
+        topics=analysis.topics,
+        analysis_model=OLLAMA_MODEL_NAME,
+        analysis_seconds=round(
+            processing_seconds,
+            2,
+        ),
+    )
+
+    return {
+        "status": "analysed",
+        "meeting_id": meeting_id,
+        "meeting_title": meeting["title"],
+        "model": OLLAMA_MODEL_NAME,
+        "processing": "on-device",
+        "processing_seconds": round(
+            processing_seconds,
+            2,
+        ),
+        "summary": analysis.summary,
+        "key_decisions": analysis.key_decisions,
+        "action_items": [
+            item.model_dump()
+            for item in analysis.action_items
+        ],
+        "topics": analysis.topics,
+        "saved": saved_meeting is not None,
+    }    
