@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import PropTypes from 'prop-types'
 import './App.css'
 import {
   checkBackendHealth,
@@ -13,53 +14,10 @@ import {
 } from './services/api'
 
 // Mock meeting data
-const mockMeetings = [
-  {
-    id: 1,
-    title: 'Sprint-Planning_07Jul2026',
-    date: '07 July 2026',
-    duration: '42 min',
-    summary: 'Team finalized sprint goals, assigned frontend polish, backend storage setup, and demo flow preparation.',
-    keywords: ['sprint', 'roadmap', 'demo', 'backend'],
-    actionItems: 4,
-    deadline: '10 July 2026',
-    searchTerms: ['sprint', 'planning', 'roadmap', 'demo', 'backend', 'goals', 'frontend']
-  },
-  {
-    id: 2,
-    title: 'UI-Bugs_Deadline_07Jul2026',
-    date: '07 July 2026',
-    duration: '28 min',
-    summary: 'Discussed mobile responsiveness, search card spacing, button states, and dashboard improvements before submission.',
-    keywords: ['UI bugs', 'responsive', 'frontend', 'deadline'],
-    actionItems: 5,
-    deadline: '08 July 2026',
-    searchTerms: ['ui', 'bugs', 'responsive', 'frontend', 'mobile', 'dashboard', 'deadline']
-  },
-  {
-    id: 3,
-    title: 'Firebase-Auth_Review_06Jul2026',
-    date: '06 July 2026',
-    duration: '35 min',
-    summary: 'Reviewed login flow, OAuth options, password reset, and security rules for user authentication.',
-    keywords: ['Firebase', 'authentication', 'OAuth', 'password reset'],
-    actionItems: 3,
-    deadline: '09 July 2026',
-    searchTerms: ['firebase', 'authentication', 'oauth', 'password', 'reset', 'login', 'security', 'auth']
-  }
-]
+
 
 // Semantic search mapping for related terms
-const semanticMap = {
-  'authentication': ['login', 'oauth', 'firebase', 'password reset', 'auth', 'security', 'user'],
-  'login': ['authentication', 'oauth', 'firebase', 'password', 'auth'],
-  'oauth': ['authentication', 'login', 'firebase', 'security'],
-  'firebase': ['authentication', 'login', 'oauth', 'password reset'],
-  'password reset': ['authentication', 'login', 'firebase', 'security'],
-  'ui': ['bugs', 'frontend', 'responsive', 'mobile', 'dashboard'],
-  'bugs': ['ui', 'frontend', 'responsive', 'deadline'],
-  'deadline': ['bugs', 'sprint', 'planning', 'submission'],
-}
+
 
 function Navbar() {
   return (
@@ -572,6 +530,12 @@ const savedMeeting = await saveMeeting({
     </section>
   )
 }
+
+
+
+RecordingSection.propTypes = {
+  onMeetingSaved: PropTypes.func.isRequired,
+}
 function MeetingHistory({ refreshKey }) {
   const [meetings, setMeetings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -911,6 +875,10 @@ function MeetingHistory({ refreshKey }) {
     </section>
   )
 }
+
+MeetingHistory.propTypes = {
+  refreshKey: PropTypes.number.isRequired,
+}
 const workflowSteps = [
   { icon: '🎙️', title: 'Record Meeting', desc: 'Capture audio locally on your device' },
   { icon: '🔊', title: 'Offline Speech-to-Text', desc: 'Convert audio to transcript using Whisper' },
@@ -1164,40 +1132,7 @@ function SearchSection() {
   )
 }
 
-function MeetingCard({ meeting }) {
-  return (
-    <div className="meeting-card">
-      <div className="meeting-header">
-        <h3 className="meeting-title">{meeting.title}</h3>
-        <span className="meeting-local-badge">
-          <span>💾</span> Local
-        </span>
-      </div>
-      <div className="meeting-meta">
-        <span className="meeting-meta-item">
-          <span>📅</span> {meeting.date}
-        </span>
-        <span className="meeting-meta-item">
-          <span>⏱️</span> {meeting.duration}
-        </span>
-      </div>
-      <p className="meeting-summary">{meeting.summary}</p>
-      <div className="meeting-keywords">
-        {meeting.keywords.map((keyword, index) => (
-          <span key={index} className="keyword-chip">{keyword}</span>
-        ))}
-      </div>
-      <div className="meeting-footer">
-        <span className="meeting-actions-count">
-          <span>📋</span> {meeting.actionItems} action items
-        </span>
-        <span className="meeting-deadline">
-          <span>⏰</span> {meeting.deadline}
-        </span>
-      </div>
-    </div>
-  )
-}
+
 
 function PrivacySection() {
   const privacyFeatures = [
