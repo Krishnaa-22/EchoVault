@@ -13,10 +13,17 @@ import {
 
 } from './services/api'
 
-// Mock meeting data
+function scrollToRecording() {
+  const recordingSection = document.getElementById('record')
 
+  if (recordingSection) {
+    recordingSection.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }
+}
 
-// Semantic search mapping for related terms
 
 
 function Navbar() {
@@ -35,7 +42,7 @@ function Navbar() {
           <a href="#search" className="navbar-link">Search</a>
           <a href="#meetings" className="navbar-link">Meetings</a>
           <a href="#privacy" className="navbar-link">Privacy</a>
-          <button className="navbar-cta">Start Recording</button>
+          <button type="button" onClick={scrollToRecording} className="navbar-cta">Start Recording</button>
         </div>
       </div>
     </nav>
@@ -59,7 +66,7 @@ function Hero() {
             Record, summarize, organize, and semantically search your meetings — fully on-device.
           </p>
           <div className="hero-buttons">
-            <button className="btn-primary">
+            <button   type="button" className="btn-primary" onClick={scrollToRecording}>
               <span>🎙️</span>
               Start Local Recording
             </button>
@@ -91,9 +98,9 @@ function Hero() {
           <div className="mockup-header">
             <div className="mockup-status">
               <span className="mockup-status-dot"></span>
-              <span className="mockup-status-text">Recording Active</span>
+              <span className="mockup-status-text">Ready to Record</span>
             </div>
-            <span className="mockup-time">00:12:48</span>
+            <span className="mockup-time">00:00:00</span>
           </div>
           <div className="waveform-container">
             <div className="waveform">
@@ -1202,7 +1209,7 @@ function FinalCTA() {
     <section className="final-cta">
       <h2 className="final-cta-title">Turn every meeting into searchable memory.</h2>
       <p className="final-cta-subtitle">Private. Offline. Intelligent.</p>
-      <button className="final-cta-btn">Try EchoVault Demo</button>
+      <button   type="button" className="final-cta-btn" onClick={scrollToRecording}>Open Local Recorder</button>
     </section>
   )
 }
