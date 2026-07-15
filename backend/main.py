@@ -90,7 +90,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".webm", ".wav", ".mp3", ".m4a", ".ogg"}
 
-WHISPER_MODEL_NAME = "tiny"
+WHISPER_MODEL_NAME = "base.en"
 
 whisper_model = None
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
@@ -211,10 +211,12 @@ def transcribe_recording(filename: str):
         started_at = time.perf_counter()
 
         segments_generator, info = model.transcribe(
-            str(audio_path),
-            beam_size=1,
-            vad_filter=True,
-        )
+    str(audio_path),
+    language="en",
+    beam_size=5,
+    vad_filter=True,
+    condition_on_previous_text=False,
+)
 
         transcription_segments = []
         transcript_parts = []

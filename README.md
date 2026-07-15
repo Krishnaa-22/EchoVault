@@ -615,42 +615,30 @@ Both the database and audio folder are ignored by Git to prevent private meeting
 
 ## 📸 Screenshots
 
-Project screenshots will be stored in the following folder:
+### Home Page
 
-```text
-screenshots/
-```
+![EchoVault Home Page](screenshots/home.png)
 
-Planned screenshots:
+### Recording and Transcription
 
-1. EchoVault home page
-2. Local engine connected status
-3. Recording interface
-4. Generated transcript
-5. Meeting history
-6. Semantic search result
-7. Local AI meeting analysis
-8. Mobile responsive interface
+![EchoVault Recording](screenshots/recording.png)
 
-Screenshots will be added before the final submission.
+### Meeting History
 
+![EchoVault Meeting History](screenshots/history.png)
+
+### Meeting Search
+
+![EchoVault Search](screenshots/search.png)
+
+### Meeting Analysis
+
+![EchoVault Analysis](screenshots/analysis.png)
 ---
 
 ## 🎥 Demo Video
 
-A short demonstration video will show:
-
-1. Starting the local backend
-2. Opening the EchoVault frontend
-3. Recording a sample meeting
-4. Generating a local transcript
-5. Viewing the meeting in history
-6. Searching the transcript using a natural-language query
-7. Generating a local AI summary
-8. Deleting a meeting
-9. Explaining the local privacy architecture
-
-**Demo video link:** To be added
+[Watch the EchoVault Demo](https://drive.google.com/file/d/1ikbJVmipoJJmbf5tu79TULWGs2Esu7xe/view?usp=sharing)
 
 ---
 
